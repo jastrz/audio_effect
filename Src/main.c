@@ -40,40 +40,21 @@
 #include "stm32l4xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-#include "math.h"
+#include "processing.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
 
-DAC_HandleTypeDef hdac1;
-
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim6;
-TIM_HandleTypeDef htim7;
-
-UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DAC_HandleTypeDef hdac1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
+UART_HandleTypeDef huart2;
 
-#define PI 3.14159
-#define BUFFER_SIZE 32
-#define OFFSET 1995
-
-#define DELAY_SIZE 11000
-
-uint16_t buffin[BUFFER_SIZE];
-uint16_t buffout[BUFFER_SIZE];
-float buff[BUFFER_SIZE];
-uint16_t sinbuff[BUFFER_SIZE];
-int i=0;
-int j=0;
-float lastbuff[DELAY_SIZE];
-unsigned BuffIter = 0;
-int speed = 8192;
-float depth = 0;
-int min = 0;
 
 /* USER CODE END PV */
 
@@ -90,73 +71,13 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-void CircleBuffer(float* input, float* buffer)
-{
-    int k = BuffIter*BUFFER_SIZE;
-    for(; k < BuffIter*BUFFER_SIZE+BUFFER_SIZE; k++)
-    {
-        buffer[k] = input[k-BuffIter*BUFFER_SIZE];
-    }
-    
-    BuffIter++;
-    if(BuffIter > DELAY_SIZE/BUFFER_SIZE - 1)
-    {
-        BuffIter = 0; 
-    }
-}
-
-/**** APPLYING SIMPLE TREMOLO ****/
-void Process()			
-{
-    buff[i] = buffin[i] - OFFSET;
-    buff[i] = 2*(buff[i] + (buff[i]*depth*sin(2*PI*j/speed)));
-    if((int)buff[i] < min)
-      min = buff[i];
-
-    buffout[i] = (uint32_t)(buff[i]+OFFSET/2);
-	// /*2*lastbuff[i+BuffIter*BUFFER_SIZE] +*/
-}
-
-/**** CONVERTING 3 VALUES
-***** 1 - buffin - signal input
-***** 2 - speed  - modulation speed
-***** 3 - depth  - modulation depth  ****/
-void ADC_GetValues()
-{
-    buffin[i] = HAL_ADC_GetValue(&hadc1);
-    speed = 10*HAL_ADC_GetValue(&hadc1);
-    depth = (float)HAL_ADC_GetValue(&hadc1)/4000.0;
-    HAL_ADC_Start(&hadc1);
-}
-
-/**** WRITING VALUES TO DAC ****/
-void DAC_SetValues()
-{
-    HAL_DAC_SetValue(&hdac1,DAC_CHANNEL_1,DAC_ALIGN_12B_R,(uint32_t)buffout[i]);
-}
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
  if(htim->Instance == TIM7){ 
     
  }
- if(htim->Instance == TIM2){			// ~48khz
-     
-    ADC_GetValues();
-    Process();
-    DAC_SetValues();
-    
-    i++;
-    j++;
-    
-    if(i>BUFFER_SIZE-1)
-    {
-      i=0;
-      CircleBuffer(buff, lastbuff);
-    }
-    if(j>speed-1)
-      j=0;
+ if(htim->Instance == TIM2){			// ~48khz 
+    OnInterrupt();
  }
-    
 }
 
 /* USER CODE END PFP */
@@ -197,13 +118,7 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM2_Init();
 
-  /* USER CODE BEGIN 2 */
-  /*for(i=0;i<256;i++)
-  {
-      sinbuff[i] = (int)(100*sin(6.28*i/16));
-  }*/
-  
-  //GenerateModSignal();
+
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_Base_Start_IT(&htim2);
