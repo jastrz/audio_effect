@@ -1,5 +1,9 @@
 #include "processing.h"
 
+#define TR_AMPL 2.0                  //amplitude of triangle wave
+float modSignal;
+float triangleWave;
+
 uint16_t buffin[BUFFER_SIZE];
 uint16_t buffout[BUFFER_SIZE];
 float buff[BUFFER_SIZE];
@@ -9,7 +13,7 @@ unsigned j = 0;                      //controlling speed
 unsigned BuffIter = 0;               //controlling CircleBuffer
 int speed = 8192;
 float depth = 0;
-
+enum TREMOLO_TYPE tremolo_type = 0;
 
 void CircleBuffer(float* input, float* buffer)
 {
@@ -30,8 +34,24 @@ void CircleBuffer(float* input, float* buffer)
 void Process()			
 {
     buff[i] = buffin[i] - OFFSET;
-    buff[i] = 2*(buff[i] + (buff[i]*depth*sin(2*PI*j/speed)));
-    buffout[i] = (uint32_t)(buff[i]+OFFSET/2);
+    
+    switch(tremolo_type)
+    {
+    case SIN:
+      modSignal = buff[i] * depth * sin( 2*PI*j/speed );
+      break;
+      
+    case TRIANGLE:
+      triangleWave = (2.0*TR_AMPL/speed) * ( fabs( fmod(j,speed) - speed/2 ) - speed/4 );    // https://en.wikipedia.org/wiki/Triangle_wave
+      modSignal = buff[i] * depth * triangleWave;
+      break;
+      
+    default:
+      break;
+    }
+    
+    buff[i] = 2 * ( buff[i] + modSignal );
+    buffout[i] = (uint32_t)( buff[i] + OFFSET/2 );
 	/*2*lastbuff[i+BuffIter*BUFFER_SIZE] +*/
 }
 
@@ -43,7 +63,7 @@ void Process()
 void ADC_GetValues()
 {
     buffin[i] = HAL_ADC_GetValue(&hadc1);
-    speed = 10*HAL_ADC_GetValue(&hadc1);                 
+    speed = 20*HAL_ADC_GetValue(&hadc1);                 
     depth = (float)HAL_ADC_GetValue(&hadc1)/4000.0;
     HAL_ADC_Start(&hadc1);             //starting new conversion
 }
@@ -68,15 +88,22 @@ void UpdateIterators()
       j=0;
 }
 
-void OnInterrupt()
+void HandleTim_2_IRQ()
 {
     ADC_GetValues();
     Process();
     DAC_SetValues();
     UpdateIterators();
-
 }
 
+void HandleTim_7_IRQ()
+{
+    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == 1)
+    {
+      tremolo_type++;                           // switch tremolo
+      tremolo_type %= 2;                        //      mode
+    }
+}
 
 
 

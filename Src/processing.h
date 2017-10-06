@@ -23,13 +23,16 @@ extern unsigned BuffIter;
 extern int speed;
 extern float depth;
 
-void CircleBuffer(float*, float*);
-void Process();                            //applying simple tremolo
-void ADC_GetValues();              
-void DAC_SetValues();                
-void OnInterrupt();                        //on TIM2 interrupt (~48kHz)
-void UpdateIterators();
+enum TREMOLO_TYPE { SIN = 0, TRIANGLE = 1};
+extern enum TREMOLO_TYPE tremolo_type;
 
+void CircleBuffer(float*, float*);         //needed for delay effect (todo)
+void Process();                            //applying simple tremolo
+void ADC_GetValues();                      //getting values from adc
+void DAC_SetValues();                      //writing values to dac
+void HandleTim_2_IRQ();                    //on TIM2 interrupt (~48kHz) - main IRQ
+void HandleTim_7_IRQ();                    //on TIM7 interrupt (~1Hz)   - GPIO IRQ
+void UpdateIterators();
 
 
 #endif

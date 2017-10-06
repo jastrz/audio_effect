@@ -44,7 +44,15 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
 
+DAC_HandleTypeDef hdac1;
+
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
+
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -55,7 +63,7 @@ TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
 UART_HandleTypeDef huart2;
 
-
+int a;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,11 +80,11 @@ static void MX_TIM2_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
- if(htim->Instance == TIM7){ 
-    
+ if(htim->Instance == TIM7){                    // ~1Hz
+    HandleTim_7_IRQ();
  }
- if(htim->Instance == TIM2){			// ~48khz 
-    OnInterrupt();
+ if(htim->Instance == TIM2){			// ~48kHz 
+    HandleTim_2_IRQ();
  }
 }
 
@@ -118,21 +126,19 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM2_Init();
 
-
+  /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADC_Start(&hadc1);
   HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
   
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {  
-    
 
   /* USER CODE END WHILE */
 
@@ -373,9 +379,9 @@ static void MX_TIM7_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 0;
+  htim7.Init.Prescaler = 9999;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 999;
+  htim7.Init.Period = 79999;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -411,14 +417,27 @@ static void MX_USART2_UART_Init(void)
 
 }
 
-/** Pinout Configuration
+/** Configure pins as 
+        * Analog 
+        * Input 
+        * Output
+        * EVENT_OUT
+        * EXTI
 */
 static void MX_GPIO_Init(void)
 {
 
+  GPIO_InitTypeDef GPIO_InitStruct;
+
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin : PB4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
